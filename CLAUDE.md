@@ -33,8 +33,8 @@ component communicates with customer infrastructure.
 
 | Contract | Path | Role in this project |
 |----------|------|----------------------|
-| Architecture Contract | `../tekmar-infrastructure/contracts/architecture.md` | Integration Layer description (section 4.4), credential handling (section 6.3), and invariants #2 and #3. |
-| MCP Tool Interface | `../tekmar-infrastructure/contracts/mcp-tool-interface.yaml` | **Primary contract.** Defines everything this repository implements: MCP server registration (section 1), tool_definition schema, tool_invocation_request and tool_invocation_response schemas (section 3), credential_envelope and per-type credential_structures, error codes, rate limit advisory format, pagination declaration, and the MVP tool inventory listing every tool to implement. |
+| Architecture Contract | `../tekmartech-infrastructure/contracts/architecture.md` | Integration Layer description (section 4.4), credential handling (section 6.3), and invariants #2 and #3. |
+| MCP Tool Interface | `../tekmartech-infrastructure/contracts/mcp-tool-interface.yaml` | **Primary contract.** Defines everything this repository implements: MCP server registration (section 1), tool_definition schema, tool_invocation_request and tool_invocation_response schemas (section 3), credential_envelope and per-type credential_structures, error codes, rate limit advisory format, pagination declaration, and the MVP tool inventory listing every tool to implement. |
 
 This repository does NOT reference `public-api.yaml`, `internal-api.yaml`,
 or `data-model.yaml`. MCP servers have no knowledge of the public API,
@@ -47,13 +47,15 @@ the internal API protocol, or the database.
 | Concern | Choice |
 |---------|--------|
 | Language | Python 3.11+ |
+| Package manager | uv |
 | MCP SDK | mcp Python SDK (official) |
 | Transport | stdio (MVP: servers run as child processes of the Pipeline Service) |
 | AWS SDK | boto3 |
 | Google SDK | google-api-python-client + google-auth |
 | GitHub SDK | httpx (direct GitHub REST API calls, no wrapper library needed) |
 | Validation | Pydantic v2 models |
-| Testing | pytest + moto (AWS mocking) + responses/respx (HTTP mocking) |
+| Logging | structlog (structured JSON logging) |
+| Testing | pytest + pytest-asyncio + moto (AWS mocking) + respx (HTTP mocking) |
 
 ---
 
@@ -319,3 +321,30 @@ case return what was collected with status `"partial"`.
 the SHA-256 hash of the JSON-serialized data and include it in the
 response metadata. This hash is what appears in the transparency log
 and allows users to verify data integrity.
+
+**Package management** — use `uv` for all dependency management. The
+project uses `pyproject.toml` for dependency specification. Use
+`uv sync` to install dependencies, `uv add <package>` to add new
+packages, and `uv run pytest` to run tests. Do not use pip directly.
+
+**Structured logging** — use structlog for all application logging with
+JSON-formatted output. Every log entry must include: `level`, `message`,
+`module` (the server type, e.g., `github`), `action` (the operation,
+e.g., `list_repos`, `paginate`), and `tool_name` when available. Log at
+debug level on tool invocation entry, info on successful completion,
+warn on rate limits or partial results, error on failures. Never log
+credential values — log credential_mode and integration_id only.
+
+**Docstrings** — add Google-style docstrings to all public functions,
+tool execute functions, and shared utility functions. Each docstring
+should describe what the function does, its arguments, return type,
+and exceptions. Reference the contract tool name where applicable
+(e.g., "Implements github.list_organization_members from
+mcp-tool-interface.yaml").
+
+**Testing** — every tool must have unit tests using pytest and respx
+for HTTP mocking. Test: correct API calls are made with expected
+parameters, response data is correctly structured, pagination is handled,
+error cases produce correctly formatted responses, and credentials
+never appear in logged output or error messages. Use `uv run pytest`
+to execute tests.
