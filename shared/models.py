@@ -45,6 +45,23 @@ class GitHubCredentials(BaseModel):
     organization: str = Field(description="The GitHub organization name (login) to query against.")
 
 
+class AWSCredentials(BaseModel):
+    """AWS-specific credential fields extracted from credential_data.
+
+    Defined in mcp-tool-interface.yaml under credential_structures.aws.
+    In broker mode, session_token is present (temporary STS credentials).
+    In direct mode, session_token is absent (long-lived access key).
+    """
+
+    access_key_id: str = Field(description="AWS access key ID.")
+    secret_access_key: str = Field(description="AWS secret access key.")
+    session_token: str | None = Field(
+        default=None,
+        description="Temporary session token from AWS STS (broker mode only).",
+    )
+    region: str = Field(description="AWS region to make API calls against.")
+
+
 class ErrorDetail(BaseModel):
     """Additional structured error context for tool invocation errors."""
 

@@ -112,6 +112,71 @@ def map_http_error(status_code: int, message: str = "") -> ToolInvocationError:
     )
 
 
+def map_boto3_error(error_code: str, message: str = "") -> ToolInvocationError:
+    """Map a boto3 ClientError code to a contract-defined error.
+
+    Args:
+        error_code: The boto3 error code (e.g. 'InvalidClientTokenId').
+        message: Optional error message (will be sanitized).
+
+    Returns:
+        A ToolInvocationError with the appropriate code and retryable flag.
+    """
+    sanitized = sanitize_error_message(message) if message else ""
+
+    auth_invalid = {
+        "InvalidClientTokenId",
+        "SignatureDoesNotMatch",
+        "AuthFailure",
+        "UnrecognizedClientException",
+    }
+    auth_expired = {"ExpiredToken", "ExpiredTokenException", "RequestExpired"}
+    auth_permission = {
+        "AccessDenied",
+        "AccessDeniedException",
+        "UnauthorizedAccess",
+        "ClientError.403",
+    }
+    throttle = {
+        "Throttling",
+        "ThrottlingException",
+        "RequestLimitExceeded",
+        "TooManyRequestsException",
+    }
+
+    if error_code in auth_invalid:
+        return ToolInvocationError(
+            code="auth.invalid_credentials",
+            message=sanitized or "Authentication failed: invalid AWS credentials.",
+            details=ErrorDetail(retryable=False),
+        )
+    if error_code in auth_expired:
+        return ToolInvocationError(
+            code="auth.expired_credentials",
+            message=sanitized or "AWS credentials have expired.",
+            details=ErrorDetail(retryable=False),
+        )
+    if error_code in auth_permission:
+        return ToolInvocationError(
+            code="auth.insufficient_permissions",
+            message=sanitized or "Insufficient AWS IAM permissions.",
+            details=ErrorDetail(retryable=False),
+        )
+    if error_code in throttle:
+        return ToolInvocationError(
+            code="rate_limit.exceeded",
+            message=sanitized or "AWS API rate limit exceeded.",
+            details=ErrorDetail(retryable=True),
+        )
+
+    # Default: treat as external API error
+    return ToolInvocationError(
+        code="external.api_error",
+        message=sanitized or f"AWS API error: {error_code}.",
+        details=ErrorDetail(retryable=True),
+    )
+
+
 def format_validation_error(message: str) -> ToolInvocationError:
     """Create a validation.invalid_parameters error.
 

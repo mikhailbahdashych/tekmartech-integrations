@@ -11,4 +11,5 @@ dist/
 .venv
 .claude
 .env*
+!.env.test.example
 uv.lock

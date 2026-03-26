@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "MCP servers for Tekmar integration layer"
 requires-python = ">=3.11"
 dependencies = [
+    "boto3>=1.42.76",
     "httpx>=0.28.1",
     "mcp[cli]>=1.26.0",
     "pydantic>=2.12.5",
@@ -13,6 +14,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "moto[all]>=5.1.18",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
     "respx>=0.22.0",
@@ -20,7 +22,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["github/tests", "tests"]
+testpaths = ["aws/tests", "github/tests", "tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
@@ -50,5 +52,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]
+"aws/tests/**" = ["S101"]
 "github/tests/**" = ["S101"]
 "scripts/**" = ["T201"]
