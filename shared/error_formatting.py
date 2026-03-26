@@ -177,6 +177,58 @@ def map_boto3_error(error_code: str, message: str = "") -> ToolInvocationError:
     )
 
 
+def map_google_api_error(status_code: int, message: str = "") -> ToolInvocationError:
+    """Map a Google API HTTP error to a contract-defined error.
+
+    The google-api-python-client raises HttpError with an HTTP status code.
+    This maps those to the contract error codes.
+
+    Args:
+        status_code: The HTTP status code from the Google API.
+        message: Optional error message (will be sanitized).
+
+    Returns:
+        A ToolInvocationError with the appropriate code and retryable flag.
+    """
+    sanitized = sanitize_error_message(message) if message else ""
+
+    if status_code == 401:
+        return ToolInvocationError(
+            code="auth.invalid_credentials",
+            message=sanitized or "Google API authentication failed.",
+            details=ErrorDetail(external_status_code=status_code, retryable=False),
+        )
+    if status_code == 403:
+        return ToolInvocationError(
+            code="auth.insufficient_permissions",
+            message=sanitized or "Insufficient Google API permissions.",
+            details=ErrorDetail(external_status_code=status_code, retryable=False),
+        )
+    if status_code == 429:
+        return ToolInvocationError(
+            code="rate_limit.exceeded",
+            message=sanitized or "Google API rate limit exceeded.",
+            details=ErrorDetail(external_status_code=status_code, retryable=True),
+        )
+    if status_code == 503:
+        return ToolInvocationError(
+            code="external.service_unavailable",
+            message=sanitized or "Google API service unavailable.",
+            details=ErrorDetail(external_status_code=status_code, retryable=True),
+        )
+    if 500 <= status_code < 600:
+        return ToolInvocationError(
+            code="external.api_error",
+            message=sanitized or f"Google API error (HTTP {status_code}).",
+            details=ErrorDetail(external_status_code=status_code, retryable=True),
+        )
+    return ToolInvocationError(
+        code="external.api_error",
+        message=sanitized or f"Unexpected Google API status: {status_code}.",
+        details=ErrorDetail(external_status_code=status_code, retryable=False),
+    )
+
+
 def format_validation_error(message: str) -> ToolInvocationError:
     """Create a validation.invalid_parameters error.
 

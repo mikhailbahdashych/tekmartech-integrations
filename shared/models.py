@@ -62,6 +62,23 @@ class AWSCredentials(BaseModel):
     region: str = Field(description="AWS region to make API calls against.")
 
 
+class GoogleWorkspaceCredentials(BaseModel):
+    """Google Workspace credential fields extracted from credential_data.
+
+    Defined in mcp-tool-interface.yaml under credential_structures.google_workspace.
+    The service_account_json is the full JSON key file content as a string.
+    delegated_email is required for domain-wide delegation to access user data.
+    """
+
+    service_account_json: str = Field(
+        description="The full service account key JSON as a string.",
+    )
+    delegated_email: str | None = Field(
+        default=None,
+        description="Email of the user to impersonate for domain-wide delegation.",
+    )
+
+
 class ErrorDetail(BaseModel):
     """Additional structured error context for tool invocation errors."""
 

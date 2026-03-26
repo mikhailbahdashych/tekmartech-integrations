@@ -10,9 +10,16 @@ and server_type may appear in logs.
 
 from __future__ import annotations
 
+import json
+
 import structlog
 
-from shared.models import AWSCredentials, CredentialEnvelope, GitHubCredentials
+from shared.models import (
+    AWSCredentials,
+    CredentialEnvelope,
+    GitHubCredentials,
+    GoogleWorkspaceCredentials,
+)
 
 logger = structlog.get_logger()
 
@@ -88,3 +95,59 @@ def extract_aws_credentials(envelope: CredentialEnvelope) -> AWSCredentials:
     )
 
     return AWSCredentials.model_validate(envelope.credential_data)
+
+
+_REQUIRED_SA_FIELDS = {"type", "project_id", "private_key_id", "private_key", "client_email"}
+
+
+def extract_google_workspace_credentials(
+    envelope: CredentialEnvelope,
+) -> GoogleWorkspaceCredentials:
+    """Parse and validate Google Workspace credentials from a credential envelope.
+
+    Validates that the server_type is 'google_workspace', parses the
+    service_account_json string into a dict, and checks that required
+    service account key fields are present.
+
+    Args:
+        envelope: The credential envelope from the tool invocation request.
+
+    Returns:
+        A validated GoogleWorkspaceCredentials instance.
+
+    Raises:
+        ValueError: If server_type mismatch, JSON parsing fails, or required fields missing.
+        pydantic.ValidationError: If required credential fields are missing.
+    """
+    if envelope.server_type != "google_workspace":
+        logger.error(
+            "credential_type_mismatch",
+            module="shared",
+            action="extract_credentials",
+            expected="google_workspace",
+            received=envelope.server_type,
+        )
+        raise ValueError(f"Expected server_type 'google_workspace', got '{envelope.server_type}'.")
+
+    logger.debug(
+        "extracting_google_workspace_credentials",
+        module="shared",
+        action="extract_credentials",
+        credential_mode=envelope.credential_mode,
+    )
+
+    creds = GoogleWorkspaceCredentials.model_validate(envelope.credential_data)
+
+    # Validate the service_account_json is parseable and has required fields
+    try:
+        sa_info = json.loads(creds.service_account_json)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ValueError(f"service_account_json is not valid JSON: {exc}") from exc
+
+    missing = _REQUIRED_SA_FIELDS - set(sa_info.keys())
+    if missing:
+        raise ValueError(
+            f"service_account_json missing required fields: {', '.join(sorted(missing))}"
+        )
+
+    return creds

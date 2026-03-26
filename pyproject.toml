@@ -5,6 +5,8 @@ description = "MCP servers for Tekmar integration layer"
 requires-python = ">=3.11"
 dependencies = [
     "boto3>=1.42.76",
+    "google-api-python-client>=2.193.0",
+    "google-auth>=2.49.1",
     "httpx>=0.28.1",
     "mcp[cli]>=1.26.0",
     "pydantic>=2.12.5",
@@ -22,7 +24,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["aws/tests", "github/tests", "tests"]
+testpaths = ["aws/tests", "github/tests", "google_workspace/tests", "tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
@@ -54,4 +56,5 @@ ignore = [
 "tests/**" = ["S101"]
 "aws/tests/**" = ["S101"]
 "github/tests/**" = ["S101"]
+"google_workspace/tests/**" = ["S101"]
 "scripts/**" = ["T201"]
